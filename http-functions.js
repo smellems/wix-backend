@@ -1,37 +1,141 @@
 import { ok, badRequest, notFound, serverError } from 'wix-http-functions';
+import { getSecret } from 'wix-secrets-backend';
 import wixStores from 'wix-stores-backend';
 import wixData from 'wix-data';
 
-export function get_test2(request) {
-    // URL looks like: https://mysite.com/_functions/test2/12345
+export async function post_updateProduct(request) {
+    const BestPosApiKey = await getSecret("BestPosApiKey");
+
     let response = {
         "headers": {
             "Content-Type": "application/json"
         }
     };
 
-    return wixData.query("Stores/Products")
-        .eq("sku", request.path[0])
-        .find(options)
-        .then((results) => {
-            if (results.items.length > 0) {
-                let itemData = results.items[0];
+    // get the request body
+    return request.body.json()
+        .then((body) => {
 
-                wixStores.updateProductFields(itemData._id, {
-                    "sku": itemData.sku + 1
-                })
+            if (body.key === BestPosApiKey) {
 
-                response.body = {
-                    "message": "Product has been updated"
+                let options = {
+                    "suppressAuth": true
                 };
-                return ok(response);
+
+                let productOptions = {
+                    "Grandeur": {
+                        "choices": [{
+                                "description": "250 g",
+                                "value": "250",
+                                "inStock": false,
+                                "visible": false
+                            },
+                            {
+                                "description": "500 g",
+                                "value": "500",
+                                "inStock": false,
+                                "visible": false
+                            }
+                        ]
+                    }
+                };
+
+                // Find Product
+                return wixData.query("Stores/Products")
+                    //.eq("sku", body.ItemId)
+                    .eq("sku", body.ItemId)
+                    .find(options)
+                    .then((results) => {
+                        if (results.items.length === 1) {
+                            let product = results.items[0];
+
+                            //response.body = { "message": product };
+                            //return ok(response);
+
+                            // Update Product
+
+                            wixStores.updateProductFields(product._id, {
+                                "name": body.name,
+                                "description": body.description,
+                                "price": body.price,
+                                "productOptions": productOptions,
+                                "manageVariants": true,
+                                "productType": "physical",
+                                "visible": false
+                            })
+
+                            response.body = {
+                                "message": "Product has been updated"
+                            };
+                            return ok(response);
+
+                        } else if (results.items.length === 0) {
+
+                            // Create Product
+
+                            return wixStores.createProduct({
+                                    "sku": body.ItemId,
+                                    "name": body.name,
+                                    "description": body.description,
+                                    "price": body.price,
+                                    "productOptions": productOptions,
+                                    "manageVariants": true,
+                                    "productType": "physical",
+                                    "visible": false
+                                })
+                                .then((product) => {
+                                    let i = 0;
+                                    product.variants.forEach(variant => {
+                                        i++;
+                                        let variantInfo = {
+                                            trackQuantity: false,
+                                            variants: [{
+                                                variantId: variant._id,
+                                                inStock: false
+                                            }]
+                                        };
+                                        wixStores.updateInventoryVariantFieldsByProductId(product._id, variantInfo);
+
+                                        const choice = variant.choices.Grandeur;
+                                        const price = body.price * i;
+                                        //const sku = body.ItemId + "-" + i;
+                                        const visible = false;
+                                        variantInfo = [{
+                                            visible,
+                                            //sku,
+                                            price,
+                                            "choices": {
+                                                "Grandeur": choice
+                                            }
+                                        }];
+                                        wixStores.updateVariantData(product._id, variantInfo);
+
+                                    });
+                                    response.body = {
+                                        "message": "Product has been created with " + i + " variant(s)"
+                                    };
+                                    return ok(response);
+                                })
+                        }
+
+                        response.body = {
+                            "error": `'${request.path[0]}' was found '${results.items.length}' times`
+                        };
+                        return serverError(response);
+                    })
+                    .catch((error) => {
+                        response.body = {
+                            "error": error
+                        };
+                        return serverError(response);
+                    });
             }
 
-            // No matching items found
             response.body = {
-                "error": `'${request.path[0]}' was not found`
+                "error": "Not Permitted"
             };
-            return notFound(response);
+            return serverError(response);
+
         })
         .catch((error) => {
             response.body = {
@@ -39,47 +143,4 @@ export function get_test2(request) {
             };
             return serverError(response);
         });
-}
-
-// URL to call this HTTP function from your published site looks like: 
-// Premium site - https://mysite.com/_functions/example/multiply?leftOperand=3&rightOperand=4
-// Free site - https://username.wixsite.com/mysite/_functions/example/multiply?leftOperand=3&rightOperand=4
-
-// URL to test this HTTP function from your saved site looks like:
-// Premium site - https://mysite.com/_functions-dev/example/multiply?leftOperand=3&rightOperand=4
-// Free site - https://username.wixsite.com/mysite/_functions-dev/example/multiply?leftOperand=3&rightOperand=4
-
-export function get_operation(request) {
-    const response = {
-        "headers": {
-            "Content-Type": "application/json"
-        }
-    };
-
-    // Get operation from the request path
-    const operation = request.path[0]; // "multiply"
-    const leftOperand = parseInt(request.query["leftOperand"], 10); // 3
-    const rightOperand = parseInt(request.query["rightOperand"], 10); // 4
-
-    // Perform the requested operation and return an OK response
-    // with the answer in the response body
-    switch (operation) {
-    case 'add':
-        response.body = {
-            "sum": leftOperand + rightOperand
-        };
-        return ok(response);
-    case 'multiply':
-        response.body = {
-            "product": leftOperand * rightOperand
-        };
-        return ok(response);
-    default:
-        // If the requested operation was not found, return a Bad Request
-        // response with an error message in the response body
-        response.body = {
-            "error": "unknown operation"
-        };
-        return badRequest(response);
-    }
 }

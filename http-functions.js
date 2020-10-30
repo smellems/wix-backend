@@ -1,4 +1,4 @@
-import { ok, badRequest, notFound, serverError } from 'wix-http-functions';
+import { ok, serverError } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
 import wixStores from 'wix-stores-backend';
 import wixData from 'wix-data';
@@ -27,47 +27,90 @@ export async function post_updateProduct(request) {
                         "choices": [{
                                 "description": "250 g",
                                 "value": "250",
-                                "inStock": false,
-                                "visible": false
+                                //"inStock": false, // readonly for create
+                                //"visible": false // readonly for create
                             },
                             {
                                 "description": "500 g",
                                 "value": "500",
-                                "inStock": false,
-                                "visible": false
+                                //"inStock": false, // readonly for create
+                                //"visible": false // readonly for create
                             }
                         ]
                     }
                 };
 
-                // Find Product
+                // Find Product based on SKU
                 return wixData.query("Stores/Products")
-                    //.eq("sku", body.ItemId)
                     .eq("sku", body.ItemId)
+                    //.eq("_id", body.ItemId)
+                    //.eq("name", body.name)
                     .find(options)
                     .then((results) => {
+
+                        //response.body = { "message": results };
+                        //return ok(response);
+
                         if (results.items.length === 1) {
                             let product = results.items[0];
 
-                            //response.body = { "message": product };
-                            //return ok(response);
-
                             // Update Product
 
-                            wixStores.updateProductFields(product._id, {
-                                "name": body.name,
-                                "description": body.description,
-                                "price": body.price,
-                                "productOptions": productOptions,
-                                "manageVariants": true,
-                                "productType": "physical",
-                                "visible": false
-                            })
+                            return wixStores.updateProductFields(product._id, {
+                                    "name": body.name,
+                                    "description": body.description,
+                                    "price": body.price,
+                                    //"productOptions": productOptions,
+                                    //"manageVariants": true,
+                                    //"productType": "physical",
+                                    //"visible": true
+                                })
+                                .then((updatedProduct) => {
+                                    let i = 0;
 
-                            response.body = {
-                                "message": "Product has been updated"
-                            };
-                            return ok(response);
+                                    // Update Variants
+
+                                    //response.body = { "message": updatedProduct };
+                                    //return ok(response);
+
+                                    let variantInfo = {
+                                        trackQuantity: false,
+                                        variants: [{
+                                            variantId: updatedProduct.variants[1]._id,
+                                            inStock: false
+                                        }]
+                                    };
+                                    wixStores.updateInventoryVariantFieldsByProductId(updatedProduct._id, variantInfo)
+                                        .then(() => {
+
+                                            const choice = updatedProduct.variants[1].choices.Grandeur;
+                                            const price = body.price * updatedProduct.productOptions.Grandeur.choices[1].value / 1000;
+                                            const visible = false;
+                                            let variantData = [{
+                                                visible,
+                                                price,
+                                                "choices": {
+                                                    "Grandeur": choice
+                                                }
+                                            }];
+
+                                            wixStores.updateVariantData(updatedProduct._id, variantData)
+                                            .then(() => {
+                                                
+                                            });
+                                        });
+
+                                    response.body = {
+                                        "message": "Product has been updated"
+                                    };
+                                    return ok(response);
+                                })
+                                .catch((error) => {
+                                    response.body = {
+                                        "errorUpdate": error
+                                    };
+                                    return serverError(response);
+                                });
 
                         } else if (results.items.length === 0) {
 
@@ -81,12 +124,16 @@ export async function post_updateProduct(request) {
                                     "productOptions": productOptions,
                                     "manageVariants": true,
                                     "productType": "physical",
-                                    "visible": false
+                                    "visible": true
                                 })
-                                .then((product) => {
+                                .then((newProduct) => {
                                     let i = 0;
-                                    product.variants.forEach(variant => {
+
+                                    // Update Variants
+
+                                    newProduct.variants.forEach(variant => {
                                         i++;
+
                                         let variantInfo = {
                                             trackQuantity: false,
                                             variants: [{
@@ -94,28 +141,35 @@ export async function post_updateProduct(request) {
                                                 inStock: false
                                             }]
                                         };
-                                        wixStores.updateInventoryVariantFieldsByProductId(product._id, variantInfo);
+                                        wixStores.updateInventoryVariantFieldsByProductId(newProduct._id, variantInfo)
+                                            .then(() => {
 
-                                        const choice = variant.choices.Grandeur;
-                                        const price = body.price * i;
-                                        //const sku = body.ItemId + "-" + i;
-                                        const visible = false;
-                                        variantInfo = [{
-                                            visible,
-                                            //sku,
-                                            price,
-                                            "choices": {
-                                                "Grandeur": choice
-                                            }
-                                        }];
-                                        wixStores.updateVariantData(product._id, variantInfo);
+                                                const choice = variant.choices.Grandeur;
+                                                const price = body.price * i;
+                                                const visible = false;
+                                                variantInfo = [{
+                                                    visible,
+                                                    price,
+                                                    "choices": {
+                                                        "Grandeur": choice
+                                                    }
+                                                }];
 
+                                                wixStores.updateVariantData(newProduct._id, variantInfo);
+                                            });
                                     });
+
                                     response.body = {
-                                        "message": "Product has been created with " + i + " variant(s)"
+                                        "message": "Product has been created"
                                     };
                                     return ok(response);
                                 })
+                                .catch((error) => {
+                                    response.body = {
+                                        "errorCreate": error
+                                    };
+                                    return serverError(response);
+                                });
                         }
 
                         response.body = {
@@ -125,7 +179,7 @@ export async function post_updateProduct(request) {
                     })
                     .catch((error) => {
                         response.body = {
-                            "error": error
+                            "errorQuery": error
                         };
                         return serverError(response);
                     });
@@ -139,7 +193,7 @@ export async function post_updateProduct(request) {
         })
         .catch((error) => {
             response.body = {
-                "error": error
+                "errorJSON": error
             };
             return serverError(response);
         });

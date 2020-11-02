@@ -3,7 +3,36 @@ import { getSecret } from 'wix-secrets-backend';
 import wixStores from 'wix-stores-backend';
 import wixData from 'wix-data';
 
+export function updateVariants(product, choiceNb, available, newPrice) {
+
+    let variantInfo = {
+        trackQuantity: false,
+        variants: [{
+            variantId: product.variants[choiceNb]._id,
+            inStock: available
+        }]
+    };
+
+    wixStores.updateInventoryVariantFieldsByProductId(product._id, variantInfo)
+        .then(() => {
+
+            const choice = product.variants[choiceNb].choices.Grandeur;
+            const price = (newPrice * product.productOptions.Grandeur.choices[choiceNb].value / 1000).toFixed(2);
+            const visible = available;
+            let variantData = [{
+                visible,
+                price,
+                "choices": {
+                    "Grandeur": choice
+                }
+            }];
+
+            wixStores.updateVariantData(product._id, variantData);
+        });
+}
+
 export async function post_updateProduct(request) {
+
     const BestPosApiKey = await getSecret("BestPosApiKey");
 
     let response = {
@@ -40,11 +69,13 @@ export async function post_updateProduct(request) {
                     }
                 };
 
-                // Find Product based on SKU
+                let itemId = body.ItemId
+                let name = body.name.toLowerCase();
+                let price = body.price;
+
+                // Find Product based on SKU (ItemId)
                 return wixData.query("Stores/Products")
-                    .eq("sku", body.ItemId)
-                    //.eq("_id", body.ItemId)
-                    //.eq("name", body.name)
+                    .eq("sku", itemId)
                     .find(options)
                     .then((results) => {
 
@@ -54,51 +85,23 @@ export async function post_updateProduct(request) {
                         if (results.items.length === 1) {
                             let product = results.items[0];
 
+                            //response.body = { "message": product };
+                            //return ok(response);
+
                             // Update Product
 
                             return wixStores.updateProductFields(product._id, {
-                                    "name": body.name,
-                                    "description": body.description,
-                                    "price": body.price,
-                                    //"productOptions": productOptions,
-                                    //"manageVariants": true,
-                                    //"productType": "physical",
-                                    //"visible": true
+                                    "name": name,
+                                    //"description": body.description,
+                                    "price": price
                                 })
                                 .then((updatedProduct) => {
-                                    let i = 0;
 
                                     // Update Variants
 
-                                    //response.body = { "message": updatedProduct };
-                                    //return ok(response);
-
-                                    let variantInfo = {
-                                        trackQuantity: false,
-                                        variants: [{
-                                            variantId: updatedProduct.variants[1]._id,
-                                            inStock: false
-                                        }]
-                                    };
-                                    wixStores.updateInventoryVariantFieldsByProductId(updatedProduct._id, variantInfo)
-                                        .then(() => {
-
-                                            const choice = updatedProduct.variants[1].choices.Grandeur;
-                                            const price = body.price * updatedProduct.productOptions.Grandeur.choices[1].value / 1000;
-                                            const visible = false;
-                                            let variantData = [{
-                                                visible,
-                                                price,
-                                                "choices": {
-                                                    "Grandeur": choice
-                                                }
-                                            }];
-
-                                            wixStores.updateVariantData(updatedProduct._id, variantData)
-                                            .then(() => {
-                                                
-                                            });
-                                        });
+                                    let available = false;
+                                    updateVariants(updatedProduct, 0, available, price);
+                                    updateVariants(updatedProduct, 1, available, price);
 
                                     response.body = {
                                         "message": "Product has been updated"
@@ -117,47 +120,22 @@ export async function post_updateProduct(request) {
                             // Create Product
 
                             return wixStores.createProduct({
-                                    "sku": body.ItemId,
-                                    "name": body.name,
-                                    "description": body.description,
-                                    "price": body.price,
+                                    "sku": itemId,
+                                    "name": name,
+                                    //"description": body.description,
+                                    "price": price,
                                     "productOptions": productOptions,
                                     "manageVariants": true,
                                     "productType": "physical",
                                     "visible": true
                                 })
                                 .then((newProduct) => {
-                                    let i = 0;
 
                                     // Update Variants
 
-                                    newProduct.variants.forEach(variant => {
-                                        i++;
-
-                                        let variantInfo = {
-                                            trackQuantity: false,
-                                            variants: [{
-                                                variantId: variant._id,
-                                                inStock: false
-                                            }]
-                                        };
-                                        wixStores.updateInventoryVariantFieldsByProductId(newProduct._id, variantInfo)
-                                            .then(() => {
-
-                                                const choice = variant.choices.Grandeur;
-                                                const price = body.price * i;
-                                                const visible = false;
-                                                variantInfo = [{
-                                                    visible,
-                                                    price,
-                                                    "choices": {
-                                                        "Grandeur": choice
-                                                    }
-                                                }];
-
-                                                wixStores.updateVariantData(newProduct._id, variantInfo);
-                                            });
-                                    });
+                                    let available = false;
+                                    updateVariants(newProduct, 0, available, body.price);
+                                    updateVariants(newProduct, 1, available, body.price);
 
                                     response.body = {
                                         "message": "Product has been created"

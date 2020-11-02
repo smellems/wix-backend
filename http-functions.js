@@ -69,9 +69,23 @@ export async function post_updateProduct(request) {
                     }
                 };
 
+                //response.body = { "message": body };
+                //return ok(response);
+
                 let itemId = body.ItemId
                 let name = body.name.toLowerCase();
                 let price = body.price;
+                let quantity = body.quantity;
+                //let department = body.department;
+                //let group = body.group;
+                //let supplier = body.supplier;
+                //let tax1 = body.tax1;
+                //let tax2 = body.tax2;
+
+                let available = false;
+                if (Number(quantity) > 1) {
+                    available = true;
+                }
 
                 // Find Product based on SKU (ItemId)
                 return wixData.query("Stores/Products")
@@ -82,7 +96,7 @@ export async function post_updateProduct(request) {
                         //response.body = { "message": results };
                         //return ok(response);
 
-                        if (results.items.length === 1) {
+                        if (results.items.length > 0) {
                             let product = results.items[0];
 
                             //response.body = { "message": product };
@@ -97,9 +111,13 @@ export async function post_updateProduct(request) {
                                 })
                                 .then((updatedProduct) => {
 
+                                    // Update Collections
+
+                                    //let collectionId = query
+                                    //wixStores.addProductsToCollection(collectionId, [updatedProduct._id]);
+
                                     // Update Variants
 
-                                    let available = false;
                                     updateVariants(updatedProduct, 0, available, price);
                                     updateVariants(updatedProduct, 1, available, price);
 
@@ -115,7 +133,7 @@ export async function post_updateProduct(request) {
                                     return serverError(response);
                                 });
 
-                        } else if (results.items.length === 0) {
+                        } else {
 
                             // Create Product
 
@@ -131,9 +149,10 @@ export async function post_updateProduct(request) {
                                 })
                                 .then((newProduct) => {
 
+                                    // Update Collections
+
                                     // Update Variants
 
-                                    let available = false;
                                     updateVariants(newProduct, 0, available, body.price);
                                     updateVariants(newProduct, 1, available, body.price);
 
@@ -149,11 +168,6 @@ export async function post_updateProduct(request) {
                                     return serverError(response);
                                 });
                         }
-
-                        response.body = {
-                            "error": `'${request.path[0]}' was found '${results.items.length}' times`
-                        };
-                        return serverError(response);
                     })
                     .catch((error) => {
                         response.body = {

@@ -1,9 +1,9 @@
-([Français](#gabarit-pour-dépôts-de-code-source-ouvert-du-gouvernement-du-canada))
+([Français](#code-backend-wix))
 
 ## WIX Backend Code
 
-- Sync Orders and Invoices
-- Expose API to update Products
+- Update Wix Store Products based based on changes in (BEST POS)(https://en.bestpos.ca/)
+- Save Web Orders in BEST database and update inventory
 
 ### License
 
@@ -13,8 +13,8 @@ ______________________
 
 ## Code Backend WIX
 
-- Syncorniser les Commandes et les Factures
-- Exposer un API pour la mise à jour des Produits
+- Mettre à jour les produits de la boutique Wix en fonctions des modifications dans (BEST POS)(https://www.bestpos.ca/)
+- Sauvegarder les commandes Web dans la base de données BEST
 
 ### Licence
 

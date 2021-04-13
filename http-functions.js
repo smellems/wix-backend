@@ -272,17 +272,6 @@ export async function post_updateProduct(request) {
         });
 }
 
-export async function get_testOnOrderPaid(request) {
-
-    let OrderNb = 123456;
-
-    // Logging
-    console.log(request);
-
-    // Paste events function below to test Dropbox XML file //
-
-}
-
 /* test function
 export function get_testQueryOrder(request) {
 

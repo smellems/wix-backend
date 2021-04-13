@@ -279,7 +279,7 @@ export async function get_testOnOrderPaid(request) {
     // Logging
     console.log(request);
 
-    // Copy events function below to test Dropbox XML file //
+    // Paste events function below to test Dropbox XML file //
 
 }
 

@@ -11,6 +11,7 @@ export function wixStores_onCartCreated(event) {
     console.log("onCartCreated " + total);
 }
 
+// **** Order Paid ****/
 export async function wixStores_onOrderPaid(event) {
     
     let OrderNb = event.number;
@@ -18,6 +19,8 @@ export async function wixStores_onOrderPaid(event) {
     // Logging
     console.log(event);
     
+    // Copy to HTTP functions to test Dropbox XML file //
+
     const DropboxAccessToken = await getSecret("DropboxAccessToken");
 
     let options = {
@@ -28,15 +31,17 @@ export async function wixStores_onOrderPaid(event) {
         .eq("number", OrderNb)
         .find(options)
         .then((results) => {
-            let order = results.items[0];
+            //let order = results.items[0];
+
+
             let orderDate = new Date();
             let items = "";
-            for (let i = 0; i < order.lineItems.length; i++) {
+            for (let i = 0; i < event.lineItems.length; i++) {
                 items += "<item>" +
-                    "<Itemid>" + order.lineItems[i].sku + "</Itemid>" +
-                    "<Description>" + order.lineItems[i].name + "</Description>" +
-                    "<Quantity>" + order.lineItems[i].quantity + "</Quantity>" +
-                    "<Price>" + order.lineItems[i].priceData.totalPrice + "</Price>" +
+                    "<Itemid>" + event.lineItems[i].sku + "</Itemid>" +
+                    "<Description>" + event.lineItems[i].name + "</Description>" +
+                    "<Quantity>" + event.lineItems[i].quantity + "</Quantity>" +
+                    "<Price>" + event.lineItems[i].priceData.totalPrice + "</Price>" +
                     "</item>";
             }
 
@@ -117,6 +122,8 @@ export async function wixStores_onOrderPaid(event) {
             console.log(error);
             return false;
         });
+
+        // End Copy
 }
 
 /**** New Order ****/

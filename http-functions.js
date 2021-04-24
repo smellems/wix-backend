@@ -1,6 +1,5 @@
 import { ok, serverError } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
-import { fetch } from 'wix-fetch';
 import wixStores from 'wix-stores-backend';
 import wixData from 'wix-data';
 import Iconv from 'iconv-lite';

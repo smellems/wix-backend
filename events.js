@@ -1,5 +1,6 @@
 import wixData from 'wix-data';
 import wixStores from 'wix-stores-backend';
+import { fetch } from 'wix-fetch';
 //import wixBilling from 'wix-billing-backend';
 //import { invoices } from 'wix-billing-backend';
 import { getSecret } from 'wix-secrets-backend';
@@ -15,6 +16,7 @@ export function wixStores_onCartCreated(event) {
 export async function wixStores_onOrderPaid(event) {
 
     // Logging
+    wixData.insert("onOrderPaidEvent", event);
     console.log(event);
 
     const DropboxAccessToken = await getSecret("DropboxAccessToken");
@@ -79,9 +81,6 @@ export async function wixStores_onOrderPaid(event) {
             "</Orders>" +
         "</commande>";
 
-    // Logging
-    console.log(event.number + " - " + event.buyerInfo.firstName + " " + event.buyerInfo.lastName + " - " + event.totals.subtotal);
-
     return fetch("https://content.dropboxapi.com/2/files/upload", {
             "method": "post",
             "headers": {
@@ -94,6 +93,7 @@ export async function wixStores_onOrderPaid(event) {
             "body": Iconv.encode(xmlstr, "ISO-8859-1")
         })
         .then((result) => {
+            wixData.insert("onOrderPaidEvent", result.json());
             console.log(result.json());
             if (result.ok) {
                 return true;

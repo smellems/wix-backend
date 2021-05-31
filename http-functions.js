@@ -232,7 +232,19 @@ export async function post_updateProduct(request) {
                                 "visible": true
                             };
 
-                            if (variants !== "") {
+                            if (variants !== "" && parseInt(variants, 10) > 0) {
+                                productFields = {
+                                    "name": nameWeb,
+                                    "manageVariants": false,
+                                    "price": price,
+                                    "pricePerUnitData": {
+                                        "totalQuantity": variants,
+                                        "totalMeasurementUnit": "G",
+                                        "baseQuantity": 100,
+                                        "baseMeasurementUnit": "G"
+                                    }
+                                }
+                            } else if (variants !=="") {
                                 productFields = {
                                     "sku": sku,
                                     "name": nameWeb,

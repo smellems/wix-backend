@@ -41,7 +41,7 @@ export function updateCollectionsAndVariants(department, options, product, varia
             }
         });
 
-    if (variants !== "") {
+    if (variants !== "" && !(parseInt(variants, 10) > 0)) {
         let nbChoices = product.productOptions[choicesType].choices.length;
         for (let i = 0; i < nbChoices; i++) {
             updateVariants(product, i, available, price, choicesType);
@@ -69,11 +69,6 @@ export async function post_updateProduct(request) {
     // get the request body
     return request.body.json()
         .then((body) => {
-
-            //console.log(body);
-            //response.body = { "message": body };
-            //return ok(response);
-
             if (body.key === BestPosApiKey) {
 
                 let sku = body.sku
@@ -234,15 +229,18 @@ export async function post_updateProduct(request) {
 
                             if (variants !== "" && parseInt(variants, 10) > 0) {
                                 productFields = {
+                                    "sku": sku,
                                     "name": nameWeb,
-                                    "manageVariants": false,
                                     "price": price,
                                     "pricePerUnitData": {
                                         "totalQuantity": variants,
                                         "totalMeasurementUnit": "G",
                                         "baseQuantity": 100,
                                         "baseMeasurementUnit": "G"
-                                    }
+                                    },
+                                    "manageVariants": false,
+                                    "productType": "physical",
+                                    "visible": true
                                 }
                             } else if (variants !=="") {
                                 productFields = {

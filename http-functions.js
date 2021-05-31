@@ -2,7 +2,6 @@ import { ok, serverError } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
 import wixStores from 'wix-stores-backend';
 import wixData from 'wix-data';
-import Iconv from 'iconv-lite';
 
 export function updateVariants(product, choiceNb, visible, newPrice, choicesType) {
 
@@ -47,8 +46,8 @@ export function updateCollectionsAndVariants(department, options, product, varia
         for (let i = 0; i < nbChoices; i++) {
             updateVariants(product, i, available, price, choicesType);
         }
-    } else if (!available) {
-        updateVariants(product, 0, false, price, "Unit");
+    } else {
+        updateVariants(product, 0, available, price, "Unit");
     }
 }
 
@@ -131,15 +130,8 @@ export async function post_updateProduct(request) {
                     productOptions = productOptions[variants];
                     choicesType = "Poid";
                 } else if (variants !== "" && parseInt(variants, 10) > 0) {
-                    productOptions = {
-                        "Poid": {
-                            "choices": [{
-                                "description": variants + " g",
-                                "value": variants
-                            }]
-                        }
-                    };
-                    choicesType = "Poid";
+                    nameWeb = nameWeb + " - " + variants + "g";
+                    price = (price * variants / 1000).toFixed(2);
                 } else if (variants !== "" && variants.split("--").length > 0) {
                     let choices = [];
                     for (let i = 0; i < variants.split("--").length; i++) {
@@ -159,7 +151,7 @@ export async function post_updateProduct(request) {
                 }
 
                 // Logging
-                console.log(sku + "-" + name + "-<" + variants + ">");
+                console.log(sku + "-" + name + " (" + quantity + ") " + available + " - <" + variants + ">");
 
                 let options = {
                     "suppressAuth": true
@@ -186,7 +178,19 @@ export async function post_updateProduct(request) {
                                                 "price": price
                                             };
 
-                                            if (variants !== "") {
+                                            if (variants !== "" && parseInt(variants, 10) > 0) {
+                                                productFields = {
+                                                    "name": nameWeb,
+                                                    "manageVariants": false,
+                                                    "price": price,
+                                                    "pricePerUnitData": {
+                                                        "totalQuantity": variants,
+                                                        "totalMeasurementUnit": "G",
+                                                        "baseQuantity": 100,
+                                                        "baseMeasurementUnit": "G"
+                                                    }
+                                                }
+                                            } else if (variants !== "") {
                                                 productFields = {
                                                     "name": nameWeb,
                                                     "manageVariants": true,
